@@ -47,6 +47,8 @@ function stripMarkdownInjection(content: string): string {
   s = s.replace(/```[\s\S]*?```/g, '');
   // Pass 3: strip HTML comment regions (<!-- ... -->)
   s = s.replace(/<!--[\s\S]*?-->/g, '');
+  // Pass 4: strip blockquote-prefixed lines (any line starting with optional whitespace + >)
+  s = s.replace(/^\s*>.*$/gm, '');
   return s;
 }
 
