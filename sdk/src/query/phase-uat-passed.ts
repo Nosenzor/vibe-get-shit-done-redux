@@ -15,6 +15,9 @@ export const REASON_CODE = Object.freeze({
   NON_PASS_RESULT: 'non_pass_result',
   CASE_MISMATCH: 'case_mismatch',
   HUMAN_VERIFICATION_NEEDED: 'human_verification_needed',
+  ORPHAN_ITEM_MISSING_RESULT: 'orphan_item_missing_result',
+  BRACKETED_PLACEHOLDER: 'bracketed_placeholder',
+  NO_ITEMS_EXTRACTED: 'no_items_extracted',
   NO_PHASE_DIR: 'no_phase_dir',
   NO_UAT_FILES: 'no_uat_files',
 } as const);
@@ -75,6 +78,33 @@ function parseAllUatItems(content: string): UatItem[] {
   return items;
 }
 
+const HEADING_PATTERN = /###\s*(\d+)\.\s*([^\n]+)/g;
+
+/**
+ * Scan stripped body for `### N. Name` headings whose number is NOT represented
+ * in the set of captured item numbers. Returns orphan entries.
+ * Headings that have a bracketed result line are excluded here — they will be
+ * handled by bracketed-placeholder detection (cycle 13).
+ */
+function findOrphanHeadings(
+  strippedBody: string,
+  capturedNumbers: Set<number>,
+  brackPlaceholderNumbers: Set<number>,
+): Array<{ num: number; name: string }> {
+  const orphans: Array<{ num: number; name: string }> = [];
+  HEADING_PATTERN.lastIndex = 0;
+  let m: RegExpMatchArray | null;
+  while ((m = HEADING_PATTERN.exec(strippedBody)) !== null) {
+    const num = parseInt(m[1], 10);
+    const name = m[2].trim();
+    if (!capturedNumbers.has(num) && !brackPlaceholderNumbers.has(num)) {
+      orphans.push({ num, name });
+    }
+  }
+  HEADING_PATTERN.lastIndex = 0;
+  return orphans;
+}
+
 export async function isPhaseUatPassed(
   projectDir: string,
   phase: string,
@@ -114,6 +144,7 @@ export async function isPhaseUatPassed(
     const filePath = join(dir, file);
     const relFile = relative(projectDir, filePath);
     const content = await readFile(filePath, 'utf-8');
+    const strippedBody = stripMarkdownInjection(content);
     const parsed = parseAllUatItems(content);
     for (const item of parsed) {
       items.push(item);
@@ -129,6 +160,39 @@ export async function isPhaseUatPassed(
           capturedValue: item.result,
         });
       }
+    }
+
+    // Detect bracketed placeholders (cycle 13): headings with result: [value]
+    const brackPlaceholderNumbers = new Set<number>();
+    const BRACK_RESULT_PATTERN = /result:\s*\[(\w+)\]/g;
+    let bm: RegExpMatchArray | null;
+    BRACK_RESULT_PATTERN.lastIndex = 0;
+    while ((bm = BRACK_RESULT_PATTERN.exec(strippedBody)) !== null) {
+      // find nearest preceding heading
+      const before = strippedBody.slice(0, bm.index);
+      const headingMatch = before.match(/###\s*(\d+)\.\s*([^\n]+)\s*$/);
+      if (headingMatch) {
+        const num = parseInt(headingMatch[1], 10);
+        const name = headingMatch[2].trim();
+        brackPlaceholderNumbers.add(num);
+        reasons.push({
+          code: REASON_CODE.BRACKETED_PLACEHOLDER,
+          file: relFile,
+          itemName: name,
+          capturedValue: `[${bm[1]}]`,
+        });
+      }
+    }
+
+    // Detect orphan headings: headings with no captured item and no bracketed result.
+    const capturedNumbers = new Set(parsed.map((i) => i.test));
+    const orphans = findOrphanHeadings(strippedBody, capturedNumbers, brackPlaceholderNumbers);
+    for (const orphan of orphans) {
+      reasons.push({
+        code: REASON_CODE.ORPHAN_ITEM_MISSING_RESULT,
+        file: relFile,
+        itemName: orphan.name,
+      });
     }
 
     // Merge frontmatter human_verification items into the roster.
