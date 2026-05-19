@@ -11,6 +11,7 @@ import { resolvePhaseDir } from './phase-list-queries.js';
 
 export const REASON_CODE = Object.freeze({
   NON_PASS_RESULT: 'non_pass_result',
+  NO_PHASE_DIR: 'no_phase_dir',
 } as const);
 
 export type ReasonCode = typeof REASON_CODE[keyof typeof REASON_CODE];
@@ -62,7 +63,12 @@ export async function isPhaseUatPassed(
 }> {
   const dir = await resolvePhaseDir(phase, projectDir, workstream);
   if (!dir) {
-    return { passed: false, reasons: [], reasonsHuman: [], items: [] };
+    return {
+      passed: false,
+      reasons: [{ code: REASON_CODE.NO_PHASE_DIR }],
+      reasonsHuman: [],
+      items: [],
+    };
   }
 
   const files = await readdir(dir);

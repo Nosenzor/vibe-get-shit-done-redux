@@ -43,6 +43,24 @@ describe('isPhaseUatPassed', () => {
     expect(result.reasons.length).toBe(0);
   });
 
+  it('returns passed=false with NO_PHASE_DIR reason when phase has no directory', async () => {
+    const localTmp = await mkdtemp(join(tmpdir(), 'gsd-uat-c3-'));
+    try {
+      const otherPhaseDir = join(localTmp, '.planning', 'phases', '06-other');
+      await mkdir(otherPhaseDir, { recursive: true });
+      await writeFile(join(otherPhaseDir, '06-HUMAN-UAT.md'), UAT_PASS_CONTENT);
+
+      // Query phase 5 which has NO directory in this fixture
+      const result = await isPhaseUatPassed(localTmp, '5');
+      expect(result.passed).toBe(false);
+      expect(result.items.length).toBe(0);
+      expect(result.reasons.length).toBe(1);
+      expect(result.reasons[0].code).toBe(REASON_CODE.NO_PHASE_DIR);
+    } finally {
+      await rm(localTmp, { recursive: true, force: true });
+    }
+  });
+
   it('returns passed=false with NON_PASS_RESULT reason when single UAT item has result: issue', async () => {
     const nonPassContent = `---
 status: complete
