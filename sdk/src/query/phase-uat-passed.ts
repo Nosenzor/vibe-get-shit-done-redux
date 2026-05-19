@@ -11,6 +11,7 @@ import { resolvePhaseDir } from './phase-list-queries.js';
 
 export const REASON_CODE = Object.freeze({
   NON_PASS_RESULT: 'non_pass_result',
+  CASE_MISMATCH: 'case_mismatch',
   NO_PHASE_DIR: 'no_phase_dir',
   NO_UAT_FILES: 'no_uat_files',
 } as const);
@@ -114,8 +115,12 @@ export async function isPhaseUatPassed(
     for (const item of parsed) {
       items.push(item);
       if (item.result !== 'pass') {
+        const code =
+          item.result.toLowerCase() === 'pass'
+            ? REASON_CODE.CASE_MISMATCH
+            : REASON_CODE.NON_PASS_RESULT;
         reasons.push({
-          code: REASON_CODE.NON_PASS_RESULT,
+          code,
           file: relFile,
           itemName: item.name,
           capturedValue: item.result,
