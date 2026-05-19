@@ -45,6 +45,8 @@ function stripMarkdownInjection(content: string): string {
   let s = content.replace(/^---\r?\n[\s\S]*?\r?\n---/m, '');
   // Pass 2: strip fenced code blocks (``` ... ```)
   s = s.replace(/```[\s\S]*?```/g, '');
+  // Pass 3: strip HTML comment regions (<!-- ... -->)
+  s = s.replace(/<!--[\s\S]*?-->/g, '');
   return s;
 }
 
