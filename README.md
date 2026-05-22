@@ -1,5 +1,7 @@
 > # ⚠️ This is the active fork
 >
+> 📢 **Read the announcement: [why the fork, what changed, what's next →](https://github.com/gsd-redux/get-shit-done-redux/discussions/109)**
+>
 > The original repo at [gsd-build/get-shit-done](https://github.com/gsd-build/get-shit-done) appears compromised or abandoned. The maintainer (TÂCHES) has not been reachable since **2026-04-01**. TÂCHES social accounts appear deleted, and a **`$GSD` token associated with the project has been linked publicly to a rug-pull**.
 >
 > I have **no inside information** beyond what is publicly visible. I am stating absence-of-information deliberately — absence of news is not the same as evidence.
